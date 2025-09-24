@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Receptor Automático de Dados do Robô FTC</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        pre {
+            background-color: #f3f4f6;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-2xl">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-2">Receptor Automático de Dados do Robô FTC</h1>
+        <p class="text-center text-gray-500 mb-6">Atualizando dados do robô automaticamente...</p>
+
+        <!-- Mensagem de status/erro -->
+        <div id="message" class="mt-4 hidden p-3 rounded-lg text-sm" role="alert"></div>
+
+        <!-- Área de exibição do JSON processado -->
+        <div id="outputContainer" class="mt-8 hidden">
+            <h2 class="text-xl font-semibold text-gray-800 mb-2">Dados Processados:</h2>
+            <pre id="jsonOutput" class="text-gray-800"></pre>
+        </div>
+
+        <!-- Histórico de JSONs -->
+        <div id="historyContainer" class="mt-8 hidden">
+            <h2 class="text-xl font-semibold text-gray-800 mb-2">Histórico de Dados:</h2>
+            <ul id="historyList" class="space-y-2"></ul>
+        </div>
+    </div>
+
+    <script>
+        // Array para armazenar o histórico de JSONs lidos
+        let jsonHistory = [];
+        let updateInterval; // Variável para armazenar o ID do intervalo
+
+        async function fetchData() {
+            const messageDiv = document.getElementById('message');
+            const outputContainer = document.getElementById('outputContainer');
+            const jsonOutput = document.getElementById('jsonOutput');
+
+            // URL para carregar o JSON.
+            // IMPORTANTE: Substitua esta URL pela URL real do seu robô FTC ou do seu arquivo JSON.
+            const robotDataUrl = 'https://mock-api.dev/robot-data.json'; 
+
+            try {
+                // Tenta carregar o JSON da URL
+                messageDiv.textContent = 'Atualizando dados...';
+                messageDiv.classList.remove('hidden', 'bg-red-100', 'text-red-800', 'bg-green-100', 'text-green-800');
+                messageDiv.classList.add('bg-gray-200', 'text-gray-800');
+
+                const response = await fetch(robotDataUrl);
+
+                if (!response.ok) {
+                    throw new Error(`Erro de rede: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                
+                // Formata o JSON com indentação para melhor visualização
+                const formattedJson = JSON.stringify(data, null, 2);
+
+                // Exibe o resultado mais recente
+                jsonOutput.textContent = formattedJson;
+                outputContainer.classList.remove('hidden');
+
+                // Adiciona o novo JSON ao histórico
+                const timestamp = new Date().toLocaleTimeString();
+                jsonHistory.push({ formattedJson, timestamp });
+
+                // Limita o histórico aos últimos 5 itens para evitar sobrecarregar a página
+                if (jsonHistory.length > 5) {
+                    jsonHistory.shift();
+                }
+
+                // Renderiza o histórico na interface
+                renderHistory();
+
+                messageDiv.textContent = 'Dados atualizados com sucesso!';
+                messageDiv.classList.remove('hidden', 'bg-red-100', 'text-red-800', 'bg-gray-200', 'text-gray-800');
+                messageDiv.classList.add('bg-green-100', 'text-green-800');
+
+            } catch (error) {
+                // Se houver um erro, exibe uma mensagem de erro
+                messageDiv.textContent = `Erro ao carregar os dados: ${error.message}`;
+                messageDiv.classList.remove('hidden', 'bg-green-100', 'text-green-800', 'bg-gray-200', 'text-gray-800');
+                messageDiv.classList.add('bg-red-100', 'text-red-800');
+                console.error(error);
+            }
+        }
+
+        function renderHistory() {
+            const historyList = document.getElementById('historyList');
+            historyList.innerHTML = '';
+            document.getElementById('historyContainer').classList.remove('hidden');
+
+            // Itera sobre o histórico e cria os itens da lista
+            jsonHistory.forEach((item, index) => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <button class="w-full text-left p-3 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors cursor-pointer">
+                        <span class="font-semibold text-gray-700">JSON #${index + 1}</span> - Carregado às ${item.timestamp}
+                    </button>
+                `;
+                // Adiciona um listener para mostrar o JSON correspondente ao clique
+                li.querySelector('button').addEventListener('click', () => {
+                    const jsonOutput = document.getElementById('jsonOutput');
+                    const outputContainer = document.getElementById('outputContainer');
+                    jsonOutput.textContent = item.formattedJson;
+                    outputContainer.classList.remove('hidden');
+                });
+                historyList.appendChild(li);
+            });
+        }
+
+        // Inicia a busca de dados a cada 5 segundos
+        window.onload = function() {
+            fetchData(); // Chamada inicial para carregar os dados imediatamente
+            updateInterval = setInterval(fetchData, 5000); // Repete a cada 5 segundos
+        };
+
+        // Opcional: Para parar de atualizar (útil para debug)
+        // clearInterval(updateInterval);
+
+    </script>
+</body>
+</html>
