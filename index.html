@@ -42,99 +42,113 @@
     </div>
 
     <script>
-        // Array para armazenar o histórico de JSONs lidos
-        let jsonHistory = [];
-        let updateInterval; // Variável para armazenar o ID do intervalo
+    // Array para armazenar o histórico de JSONs lidos
+    let jsonHistory = [];
+    let updateInterval; 
+    
+    // NOVIDADE: Variável para armazenar o JSON anterior em formato string.
+    let lastFormattedJson = null; 
 
-        async function fetchData() {
-            const messageDiv = document.getElementById('message');
-            const outputContainer = document.getElementById('outputContainer');
-            const jsonOutput = document.getElementById('jsonOutput');
+    async function fetchData() {
+        const messageDiv = document.getElementById('message');
+        const outputContainer = document.getElementById('outputContainer');
+        const jsonOutput = document.getElementById('jsonOutput');
 
-            // URL para carregar o JSON.
-            // IMPORTANTE: Substitua esta URL pela URL real do seu robô FTC ou do seu arquivo JSON.
-            // http://192.168.43.153:5000/latest_data
-            const robotDataUrl = 'https://raw.githubusercontent.com/EVEREST-23060/SiteJsonsRobot/refs/heads/main/robo_teste.json';
+        // URL para carregar o JSON.
+        // Use a URL do robô ou o link RAW do GitHub para teste.
+        const robotDataUrl = 'https://raw.githubusercontent.com/EVEREST-23060/SiteJsonsRobot/refs/heads/main/robo_teste.json';
+        // OU: const robotDataUrl = 'http://192.168.43.153:5000/latest_data'; 
+        
+        try {
+            messageDiv.textContent = 'Atualizando dados...';
+            messageDiv.classList.remove('hidden', 'bg-red-100', 'text-red-800', 'bg-green-100', 'text-green-800');
+            messageDiv.classList.add('bg-gray-200', 'text-gray-800');
+
+            const response = await fetch(robotDataUrl);
+
+            if (!response.ok) {
+                throw new Error(`Erro de rede: ${response.statusText}`);
+            }
+
+            const data = await response.json();
             
-            try {
-                // Tenta carregar o JSON da URL
-                messageDiv.textContent = 'Atualizando dados...';
-                messageDiv.classList.remove('hidden', 'bg-red-100', 'text-red-800', 'bg-green-100', 'text-green-800');
-                messageDiv.classList.add('bg-gray-200', 'text-gray-800');
+            // Formata o JSON com indentação
+            const formattedJson = JSON.stringify(data, null, 2);
 
-                const response = await fetch(robotDataUrl);
-
-                if (!response.ok) {
-                    throw new Error(`Erro de rede: ${response.statusText}`);
-                }
-
-                const data = await response.json();
+            // 🌟 LÓGICA DE COMPARAÇÃO 🌟
+            // Verifica se o JSON atual é diferente do último armazenado
+            if (formattedJson !== lastFormattedJson) {
                 
-                // Formata o JSON com indentação para melhor visualização
-                const formattedJson = JSON.stringify(data, null, 2);
+                // --- NOVO DADO ENCONTRADO ---
+                
+                // 1. Armazena o novo JSON como o último
+                lastFormattedJson = formattedJson;
 
-                // Exibe o resultado mais recente
-                jsonOutput.textContent = formattedJson;
-                outputContainer.classList.remove('hidden');
-
-                // Adiciona o novo JSON ao histórico
+                // 2. Adiciona o novo JSON ao histórico
                 const timestamp = new Date().toLocaleTimeString();
                 jsonHistory.push({ formattedJson, timestamp });
 
-                // Limita o histórico aos últimos 5 itens para evitar sobrecarregar a página
+                // 3. Limita o histórico
                 if (jsonHistory.length > 5) {
                     jsonHistory.shift();
                 }
 
-                // Renderiza o histórico na interface
+                // 4. Renderiza o histórico e a mensagem de sucesso
                 renderHistory();
+                
+                messageDiv.textContent = 'Dados atualizados com sucesso (Novo dado salvo)!';
 
-                messageDiv.textContent = 'Dados atualizados com sucesso!';
-                messageDiv.classList.remove('hidden', 'bg-red-100', 'text-red-800', 'bg-gray-200', 'text-gray-800');
-                messageDiv.classList.add('bg-green-100', 'text-green-800');
-
-            } catch (error) {
-                // Se houver um erro, exibe uma mensagem de erro
-                messageDiv.textContent = `Erro ao carregar os dados: ${error.message}`;
-                messageDiv.classList.remove('hidden', 'bg-green-100', 'text-green-800', 'bg-gray-200', 'text-gray-800');
-                messageDiv.classList.add('bg-red-100', 'text-red-800');
-                console.error(error);
+            } else {
+                // --- DADO REPETIDO ---
+                messageDiv.textContent = 'Atualização concluída (Dados idênticos ao anterior).';
             }
+            
+            // Exibe o resultado mais recente (sempre mostra o último lido)
+            jsonOutput.textContent = formattedJson;
+            outputContainer.classList.remove('hidden');
+
+            messageDiv.classList.remove('hidden', 'bg-red-100', 'text-red-800', 'bg-gray-200', 'text-gray-800');
+            messageDiv.classList.add('bg-green-100', 'text-green-800');
+
+        } catch (error) {
+            // Se houver um erro, exibe uma mensagem de erro
+            messageDiv.textContent = `Erro ao carregar os dados: ${error.message}`;
+            messageDiv.classList.remove('hidden', 'bg-green-100', 'text-green-800', 'bg-gray-200', 'text-gray-800');
+            messageDiv.classList.add('bg-red-100', 'text-red-800');
+            console.error(error);
         }
+    }
 
-        function renderHistory() {
-            const historyList = document.getElementById('historyList');
-            historyList.innerHTML = '';
-            document.getElementById('historyContainer').classList.remove('hidden');
+    function renderHistory() {
+        const historyList = document.getElementById('historyList');
+        historyList.innerHTML = '';
+        document.getElementById('historyContainer').classList.remove('hidden');
 
-            // Itera sobre o histórico e cria os itens da lista
-            jsonHistory.forEach((item, index) => {
-                const li = document.createElement('li');
-                li.innerHTML = `
-                    <button class="w-full text-left p-3 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors cursor-pointer">
-                        <span class="font-semibold text-gray-700">JSON #${index + 1}</span> - Carregado às ${item.timestamp}
-                    </button>
-                `;
-                // Adiciona um listener para mostrar o JSON correspondente ao clique
-                li.querySelector('button').addEventListener('click', () => {
-                    const jsonOutput = document.getElementById('jsonOutput');
-                    const outputContainer = document.getElementById('outputContainer');
-                    jsonOutput.textContent = item.formattedJson;
-                    outputContainer.classList.remove('hidden');
-                });
-                historyList.appendChild(li);
+        // Itera sobre o histórico e cria os itens da lista
+        jsonHistory.forEach((item, index) => {
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <button class="w-full text-left p-3 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors cursor-pointer">
+                    <span class="font-semibold text-gray-700">JSON #${index + 1}</span> - Carregado às ${item.timestamp}
+                </button>
+            `;
+            // Adiciona um listener para mostrar o JSON correspondente ao clique
+            li.querySelector('button').addEventListener('click', () => {
+                const jsonOutput = document.getElementById('jsonOutput');
+                const outputContainer = document.getElementById('outputContainer');
+                jsonOutput.textContent = item.formattedJson;
+                outputContainer.classList.remove('hidden');
             });
-        }
+            historyList.appendChild(li);
+        });
+    }
 
-        // Inicia a busca de dados a cada 5 segundos
-        window.onload = function() {
-            fetchData(); // Chamada inicial para carregar os dados imediatamente
-            updateInterval = setInterval(fetchData, 5000); // Repete a cada 5 segundos
-        };
+    // Inicia a busca de dados a cada 5 segundos
+    window.onload = function() {
+        fetchData(); // Chamada inicial para carregar os dados imediatamente
+        updateInterval = setInterval(fetchData, 5000); // Repete a cada 5 segundos
+    };
 
-        // Opcional: Para parar de atualizar (útil para debug)
-        // clearInterval(updateInterval);
-
-    </script>
+</script>
 </body>
 </html>
